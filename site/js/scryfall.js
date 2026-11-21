@@ -60,11 +60,24 @@ async function apiJson(url, signal) {
 }
 
 function isBasicLand(card) { return /\bBasic\b/.test((card.type_line || '').split('—')[0]) && /\bLand\b/.test((card.type_line || '').split('—')[0]); }
+
+// Some special-release cards have an ordinary-looking border and aren't flagged
+// as promos/full-art in the metadata. Their release date must NOT make them the
+// "latest normal" choice. Most notably this includes Secret Lair printings.
+function isSpecialRelease(card) {
+  const set = (card.set || '').toLowerCase();
+  const setName = card.set_name || '';
+  const setType = (card.set_type || '').toLowerCase();
+  return set === 'sld' || /^secret lair(?:\b|\s)/i.test(setName) ||
+    ['promo', 'masterpiece', 'memorabilia', 'token', 'vanguard', 'minigame'].includes(setType);
+}
+
 export function readable(card, settings) {
   if (!card || card.lang !== 'en' || !card.games?.includes('paper')) return false;
   const parts = [card, ...(card.card_faces || [])];
   if (settings.avoidTextless && parts.some(part => part.textless)) return false;
   if (settings.treatment === 'standard') {
+    if (isSpecialRelease(card)) return false;
     if (card.promo) return false;
     if (card.border_color === 'borderless') return false;
     if (parts.some(p => p.full_art) && !isBasicLand(card)) return false;
@@ -81,24 +94,60 @@ export function nameMatches(card, name) {
   return !requested.includes('//') && actual.includes('//') && normalizeName(actual.split('//')[0]) === requested;
 }
 
-async function namedCard(name, signal) {
-  try { return await apiJson(`${API}/cards/named?exact=${encodeURIComponent(name)}`, signal); }
+async function namedCard(name, signal, set = null) {
+  // Let Scryfall pick the printing, rather than sorting every printing locally.
+  const urlFor = requestedName => {
+    const params = new URLSearchParams({ exact: requestedName });
+    if (set) params.set('set', set);
+    return `${API}/cards/named?${params}`;
+  };
+  try { return await apiJson(urlFor(name), signal); }
   catch (error) {
     if (!name.includes('//')) throw error;
     const firstFace = name.split('//')[0].trim();
-    const candidate = await apiJson(`${API}/cards/named?exact=${encodeURIComponent(firstFace)}`, signal);
+    const candidate = await apiJson(urlFor(firstFace), signal);
     if (!nameMatches(candidate, name)) throw error;
     return candidate;
   }
+}
+
+function acceptableScryfallDefault(card, settings) {
+  // "Scryfall default" does not apply our own promo/set/artwork ranking.
+  // The user's explicit "Avoid textless" preference still applies.
+  return card?.lang === 'en' && card.games?.includes('paper') &&
+    (!settings.avoidTextless || ![card, ...(card.card_faces || [])].some(part => part.textless));
 }
 
 /** Select a specific printing directly, or search all printings by resolved Oracle identity. */
 export async function resolveCard(entry, settings, signal) {
   const key = requestKey(entry, settings);
   const cached = await getSelection(key, settings.printingMode);
-  if (cached) return { card: cached.card, note: cached.note, cached: true };
+  if (cached && nameMatches(cached.card, entry.name) &&
+      (settings.printingMode === 'latest'
+        ? acceptableScryfallDefault(cached.card, settings)
+        : readable(cached.card, settings))) {
+    return { card: cached.card, note: cached.note, cached: true };
+  }
   if (signal?.aborted) throw abortError();
   const { name, set, collector } = entry;
+
+  if (settings.printingMode === 'latest') {
+    // No printings search, date sort, or custom "normal art" ranking: this is
+    // precisely Scryfall's /cards/named default. A specified set/collector is
+    // still an intentional override supplied by the user.
+    const chosen = set && collector
+      ? await apiJson(`${API}/cards/${encodeURIComponent(set)}/${encodeURIComponent(collector)}/en`, signal)
+      : await namedCard(name, signal, set);
+    if (!nameMatches(chosen, name)) {
+      throw new Error(`Scryfall returned '${chosen.name}', not '${name}'.`);
+    }
+    if (!acceptableScryfallDefault(chosen, settings)) {
+      throw new Error(`Scryfall's selected printing for '${name}' is not an English paper printing or is textless. Disable “Avoid textless printings” to use it.`);
+    }
+    await putSelection(key, chosen);
+    return { card: chosen, note: '', cached: false };
+  }
+
   let direct = null;
   if (set && collector) {
     direct = await apiJson(`${API}/cards/${encodeURIComponent(set)}/${encodeURIComponent(collector)}/en`, signal);
@@ -114,7 +163,7 @@ export async function resolveCard(entry, settings, signal) {
   const query = identity.oracle_id
     ? `oracleid:${identity.oracle_id} game:paper lang:en${set ? ` set:${set}` : ''}`
     : `!"${name.replaceAll('"', '')}" game:paper lang:en${set ? ` set:${set}` : ''}`;
-  const params = new URLSearchParams({ q: query, unique: 'prints', order: settings.printingMode === 'expensive' ? 'usd' : 'released', dir: 'desc' });
+  const params = new URLSearchParams({ q: query, unique: 'prints', order: 'usd', dir: 'desc' });
   let nextUrl = `${API}/cards/search?${params.toString()}`;
   let selected = null;
   let unpriced = null;
@@ -131,7 +180,6 @@ export async function resolveCard(entry, settings, signal) {
       if (!nameMatches(card, name) || !card.games?.includes('paper') || card.lang !== 'en') continue;
       sawMatch = true;
       if (!readable(card, settings)) continue;
-      if (settings.printingMode === 'latest') { selected = card; break; }
       if (card.prices?.usd != null && Number.isFinite(Number(card.prices.usd))) { selected = card; break; }
       unpriced ??= card;
     }

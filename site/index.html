@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#f5f7f8" />
+  <meta name="theme-color" content="#f7f8f8" />
   <meta name="description" content="A simple browser tool for generating print-ready Magic proxy PDFs from decklists." />
   <title>MTG Rich Proxy · PDF generator</title>
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-  <link rel="stylesheet" href="./styles.css" />
-  <script type="module" src="./js/app.js"></script>
+  <link rel="stylesheet" href="./styles-tool-v2.css" />
+  <script type="module" src="./js/app.js?v=20261121-scryfall-default-v1"></script>
 </head>
 <body>
   <header class="site-header">
@@ -28,9 +28,9 @@
     <div class="page-intro">
       <div>
         <h1>Proxy PDF generator</h1>
-        <p>Paste a decklist, adjust printing options, and download a PDF at actual card size.</p>
+        <p>Paste a decklist, choose a layout, and download print-ready sheets.</p>
       </div>
-      <span class="environment-note">Runs locally in your browser</span>
+      <span class="environment-note"><span class="environment-dot" aria-hidden="true"></span> Browser-based · No account required</span>
     </div>
 
     <form id="form" class="workspace" novalidate>
@@ -52,8 +52,8 @@
           <div class="panel-body">
             <div class="settings">
               <div class="field"><label for="layout">Cards per page</label><select id="layout"><option value="9" selected>9 · Portrait (shared cuts)</option><option value="8">8 · Landscape</option><option value="6">6 · Landscape</option></select><p class="field-description">US Letter · 2.5″ × 3.5″ cards at 100%.</p></div>
-              <div class="field"><label for="printingMode">Default printing</label><select id="printingMode"><option value="latest" selected>Latest normal printing</option><option value="expensive">Most expensive (nonfoil USD)</option></select><p class="field-description">Explicit set/collector numbers take priority.</p></div>
-              <div class="field"><label for="treatment">Artwork treatment</label><select id="treatment"><option value="standard" selected>Standard artwork</option><option value="any">Allow special treatments</option></select></div>
+              <div class="field"><label for="printingMode">Default printing</label><select id="printingMode"><option value="latest" selected>Scryfall default</option><option value="expensive">Most expensive (nonfoil USD)</option></select><p class="field-description">Uses Scryfall’s default printing. Set and collector numbers override it.</p></div>
+              <div class="field"><label for="treatment">Artwork treatment (most expensive only)</label><select id="treatment"><option value="standard" selected>Standard artwork</option><option value="any">Allow special treatments</option></select></div>
               <div class="field"><label for="quality">Source image quality</label><select id="quality"><option value="large" selected>Large JPEG · smaller file</option><option value="png">PNG source · larger file</option></select></div>
               <div class="field"><label for="doubleFaces">Double-faced cards</label><select id="doubleFaces"><option value="both" selected>Print both faces</option><option value="front">Front face only</option></select></div>
               <div class="field"><label for="fileName">Output filename</label><input type="text" id="fileName" value="mtg-rich-proxies" maxlength="90" autocomplete="off" /></div>
@@ -64,9 +64,7 @@
               <label class="check-option"><input type="checkbox" id="cropMarks" checked /><span><strong>Crop marks</strong><small>Cutting ticks near the paper edges.</small></span></label>
               <label class="check-option"><input type="checkbox" id="avoidTextless" checked /><span><strong>Avoid textless printings</strong><small>Prefer printings that retain rules text.</small></span></label>
             </div>
-            <div id="notice" class="notice" hidden role="alert"></div>
-            <div class="action-row"><button type="submit" id="generate" class="primary-button">Generate PDF <span aria-hidden="true">↓</span></button><button id="cancel" type="button" class="secondary-button" hidden>Cancel</button></div>
-            <p class="privacy-note">PDFs are built in your browser. Card data and images come from Scryfall.</p>
+            <p class="settings-footnote">Print at 100% scale for standard 2.5″ × 3.5″ cards.</p>
           </div>
         </section>
       </div>
@@ -81,12 +79,16 @@
               <div class="stat"><span>Basics skipped</span><strong id="basicCount">0</strong></div>
               <div class="stat"><span>Other lines skipped</span><strong id="ignoredCount">0</strong></div>
             </div>
+            <div id="notice" class="notice" hidden role="alert"></div>
+            <div class="action-row"><button type="submit" id="generate" class="primary-button">Generate PDF <span aria-hidden="true">↓</span></button><button id="cancel" type="button" class="secondary-button" hidden>Cancel</button></div>
             <div class="sheet-preview">
               <div class="preview-top"><strong id="templateLabel">9-UP PRINT TEMPLATE</strong><span>US Letter</span></div>
-              <div class="paper" aria-label="Sheet layout preview"><div class="card-grid" id="cardGrid" data-layout="9" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
-              <p id="cutNote" class="preview-note">With 9-up, cards share cut lines.</p>
+              <div class="preview-row">
+                <div class="paper" aria-label="Sheet layout preview"><div class="card-grid" id="cardGrid" data-layout="9" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+                <div class="preview-explanation"><span class="preview-label">Sheet layout</span><p id="cutNote" class="preview-note">With 9-up, cards share cut lines.</p><p class="print-note">Print at <strong>Actual size / 100%</strong>; disable “Fit to page”.</p></div>
+              </div>
             </div>
-            <p class="print-note">Print at <strong>Actual size / 100%</strong>. Disable “Fit to page”.</p>
+            <p class="privacy-note">PDFs are created in your browser. Card artwork comes from Scryfall.</p>
           </div>
         </section>
 

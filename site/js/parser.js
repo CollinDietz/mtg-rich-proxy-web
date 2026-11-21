@@ -91,5 +91,7 @@ export function parseDecklist(input, { includeMaybeboard = false, includeBasics 
 
 export function requestKey(entry, settings) {
   return [normalizeName(entry.name), entry.set || '', String(entry.collector || '').toLowerCase(), settings.printingMode,
-    settings.treatment, settings.avoidTextless ? 'no-textless' : 'textless-okay'].join('|');
+    // New policy key prevents reusing old "latest normal" selections in IndexedDB.
+    settings.printingMode === 'latest' ? 'scryfall-named-default-v1' : settings.treatment,
+    settings.avoidTextless ? 'no-textless' : 'textless-okay'].join('|');
 }

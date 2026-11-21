@@ -84,3 +84,11 @@ test('basic land matching is exact and case-insensitive', () => {
     assert.equal(isBasicLandName(name), false, name);
   }
 });
+
+
+test('plain decklist Fabricate is not accidentally treated as a requested Secret Lair printing', () => {
+  const parsed = parseDecklist('1 Fabricate\n1 Boltwave\n7 Island', {includeBasics:false});
+  assert.deepEqual(parsed.errors, []);
+  assert.deepEqual(parsed.entries[0], {name:'Fabricate',quantity:1,set:null,collector:null,line:1});
+  assert.equal(parsed.total,2);
+});

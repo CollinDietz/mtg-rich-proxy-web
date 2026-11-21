@@ -10,7 +10,7 @@ This is a **standalone GitHub Pages project**, based on the layout and printing-
 - Optional 8-up and 6-up **landscape** layouts.
 - **US Letter (8.5 × 11 in)** pages, exact **2.5 × 3.5 in** finished card size (180 × 252 PDF points; never scaled).
 - Crop marks extend from **0.5 PDF points** inside the paper edges, staying outside the artwork.
-- Printing selection: **latest normal English paper printing** (default), or **most expensive eligible nonfoil USD printing**.
+- Printing selection: **Scryfall default English paper printing** (default), or **most expensive eligible nonfoil USD printing**.
 - Explicit `(set) collector-number` entries are supported and override the default printing mode, subject to the artwork filters.
 - Options to avoid textless cards, favor standard artwork, and print both faces of double-faced cards.
 - **Print basic lands** is **off by default**, so basic land lines are excluded before Scryfall lookups. Turn it on to include them.
@@ -122,8 +122,8 @@ The site **excludes removed, maybeboard, and tokens/extras lines** when they are
 | Setting | Default | What it does |
 |---|---|---|
 | Cards per sheet | **9** | 9 portrait cards on one US Letter page; 8 and 6 rotate the cards and have gutters. |
-| Default printing | **Latest normal** | Newest eligible English paper printing, avoiding special border/treatments. **Most expensive** compares eligible nonfoil USD prices using Scryfall ordering. |
-| Artwork treatment | **Standard** | Excludes promo, borderless, showcase, extended-art and (nonbasic) full-art candidates. Change to “Allow special treatments” to include them. |
+| Default printing | **Scryfall default** | Uses the printing selected by Scryfall’s `/cards/named?exact=...` endpoint (not a custom latest-release sort). **Most expensive** compares eligible nonfoil USD prices using Scryfall ordering. |
+| Artwork treatment | **Standard** | Used only with **Most expensive**. Excludes Secret Lair and special-release sets, promos, borderless, showcase, extended-art and (nonbasic) full-art candidates. **Scryfall default** uses Scryfall's selected printing regardless of treatment. |
 | Image quality | **Large JPEG** | Smaller PDFs. PNG downloads a higher-resolution original and converts it to high-quality JPEG for PDF embedding. |
 | Double-faced cards | **Both faces** | Each front and back appears as a separate printable image. |
 | PDF filename | `mtg-rich-proxies.pdf` | Name of the downloaded PDF. |
@@ -131,13 +131,13 @@ The site **excludes removed, maybeboard, and tokens/extras lines** when they are
 | Print basic lands | **Off** | By default skip basic lands (including snow-covered basics and Wastes), keeping nonbasic lands. Enable to print them. |
 | Avoid textless printings | **On** | Excludes printings marked `textless` in Scryfall's metadata. |
 
-**Exact set + collector requests take priority.** If a requested printing is excluded by filters, the site tries another eligible printing (same set first; another set if necessary) and shows a substitution message. If no eligible printing exists, that card fails and **no incomplete PDF is generated**.
+**Explicit set + collector requests take priority.** In **Scryfall default** mode, the specified printing is used as long as it meets the English-paper and textless preferences. In **Most expensive** mode, artwork filters also apply; an excluded printing may be replaced with an eligible alternative (preferably from the same set). If no eligible printing can be selected, the card fails and **no incomplete PDF is generated**.
 
-**What “latest normal” means:** This is our deterministic selection of the newest *standard-treatment* printing returned by Scryfall, not literally a request to Scryfall's `/cards/named` default image. The results can differ from Scryfall's website-selected art. For *most expensive*, unpriced versions are only used if no eligible priced versions are available.
+**What “Scryfall default” means:** The site calls `/cards/named?exact=Card+Name` and uses the printing Scryfall actually returns. There is **no client-side search for the newest printing** and no custom artwork ranking in this mode. A decklist entry with an explicit set/collector number selects that printing instead; a set-only request is passed to Scryfall's named lookup. The separate **Avoid textless printings** setting still applies: if Scryfall's default is explicitly flagged textless, the site reports an error rather than substituting a different printing. For *most expensive*, unpriced versions are only used if no eligible priced versions are available.
 
 ### Caching
 
-Images are stored locally in **IndexedDB** under keys of the form `printing-id:face:quality`. Different sets/collector numbers have different Scryfall IDs and coexist. Selection records include your name, set, collector and selection settings and expire: **1 day for most-expensive**, **7 days for latest**. Image bytes remain cached until you clear them or the browser evicts them.
+Images are stored locally in **IndexedDB** under keys of the form `printing-id:face:quality`. Different sets/collector numbers have different Scryfall IDs and coexist. The Scryfall-default selection has a new cache policy key so older locally ranked selections are not reused; existing images can still be reused by printing ID. Selection records include your name, set, collector and selection settings and expire: **1 day for most-expensive**, **7 days for Scryfall default**. Image bytes remain cached until you clear them or the browser evicts them.
 
 Use **Clear cached images** in the page to discard printing selections and artwork. If your browser blocks IndexedDB, the site falls back to an in-memory cache for that page session.
 
@@ -145,7 +145,7 @@ Use **Clear cached images** in the page to discard printing selections and artwo
 
 ```text
 site/index.html          Responsive UI and all settings
-site/styles.css          Clean utility-style layout, no CSS framework required
+site/styles-tool-v2.css   Clean utility-style layout, versioned filename to avoid stale CSS
 site/js/parser.js        Decklist parser
 site/js/scryfall.js      Scryfall API and image downloader
 site/js/cache.js         IndexedDB request / artwork cache

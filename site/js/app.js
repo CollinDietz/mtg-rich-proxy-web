@@ -1,5 +1,5 @@
 import { parseDecklist, requestKey } from './parser.js';
-import { resolveCard, downloadCardImages } from './scryfall.js';
+import { resolveCard, downloadCardImages } from './scryfall.js?v=20261121-scryfall-default-v1';
 import { clearCache } from './cache.js';
 import { buildPrintablePdf } from './pdf.js';
 
