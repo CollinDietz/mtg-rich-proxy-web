@@ -6,7 +6,19 @@ export function normalizeName(name) {
   return String(name).trim().replace(/\s*\/\/\s*/g, ' // ').replace(/\s+/g, ' ').toLocaleLowerCase('en');
 }
 
-export function parseDecklist(input, { includeMaybeboard = false } = {}) {
+// Treat basic land names as known before looking anything up on Scryfall.
+// Wastes and snow-covered basics are basic lands too; cards like Command Tower are not.
+const BASIC_LAND_NAMES = new Set([
+  'plains', 'island', 'swamp', 'mountain', 'forest', 'wastes',
+  'snow-covered plains', 'snow-covered island', 'snow-covered swamp',
+  'snow-covered mountain', 'snow-covered forest',
+]);
+
+export function isBasicLandName(name) {
+  return BASIC_LAND_NAMES.has(normalizeName(name));
+}
+
+export function parseDecklist(input, { includeMaybeboard = false, includeBasics = true } = {}) {
   const entries = [];
   const errors = [];
   const ignored = [];
@@ -33,7 +45,7 @@ export function parseDecklist(input, { includeMaybeboard = false } = {}) {
     const primary = categories[0] || '';
     const sideboard = section === 'maybe' || /^\s*(?:maybe(?:\s|board|$)|removed(?:\s|$)|tokens?\s*&\s*extras|sideboard)/i.test(primary)
       || /\{noDeck\}/i.test(primary);
-    if (sideboard && !includeMaybeboard) { ignored.push({ line: lineNo, reason: 'Maybeboard / Removed / Extras' }); continue; }
+    if (sideboard && !includeMaybeboard) { ignored.push({ line: lineNo, reason: 'Maybeboard / Removed / Extras', quantity: 0 }); continue; }
 
     line = line.replace(FINISH, '').trim();
     let quantity = 1;
@@ -63,6 +75,10 @@ export function parseDecklist(input, { includeMaybeboard = false } = {}) {
     }
     if (collector && !set) {
       errors.push(`Line ${lineNo}: collector number requires a set code`);
+      continue;
+    }
+    if (!includeBasics && isBasicLandName(name)) {
+      ignored.push({ line: lineNo, reason: 'Basic land', quantity, name });
       continue;
     }
     entries.push({ name, quantity, set, collector, line: lineNo });

@@ -31,6 +31,7 @@ function settings() {
     doubleFaces: $('doubleFaces').value,
     cropMarks: $('cropMarks').checked,
     avoidTextless: $('avoidTextless').checked,
+    printBasics: $('printBasics').checked,
   };
 }
 function showNotice(message, tone = 'info') {
@@ -57,8 +58,8 @@ function setBusy(busy) {
   clearButton.disabled = busy;
   exampleButton.disabled = busy;
   entryField.readOnly = busy;
-  for (const el of document.querySelectorAll('.settings input,.settings select')) el.disabled = busy;
-  statusLabel.textContent = busy ? 'GENERATING' : 'READY';
+  for (const el of document.querySelectorAll('.settings input,.settings select,.option-list input')) el.disabled = busy;
+  statusLabel.textContent = busy ? 'GENERATING' : (downloadLink.hidden ? 'READY' : 'COMPLETE');
   $('statusDot').classList.toggle('active', busy);
 }
 function resetDownload() {
@@ -67,8 +68,8 @@ function resetDownload() {
   currentDownloadUrl = null;
 }
 function renderSummary() {
-  const { entries, errors, ignored, total } = parseDecklist(entryField.value);
   const options = settings();
+  const { entries, errors, ignored, total } = parseDecklist(entryField.value, { includeBasics: options.printBasics });
   const estimatedFaces = entries.reduce((n, e) => n + e.quantity * (options.doubleFaces === 'both' && e.name.includes('//') ? 2 : 1), 0);
   const pages = Math.ceil(estimatedFaces / options.layout);
   const layoutGrid = $('cardGrid');
@@ -78,8 +79,8 @@ function renderSummary() {
   $('cutNote').textContent = options.layout === 9 ? 'With 9-up, cards share cut lines.' : 'Landscape layouts use separate crop marks and gutters.';
   $('cardCount').textContent = total;
   $('pageCount').textContent = pages;
-  $('uniqueCount').textContent = new Set(entries.map(e => `${e.name.toLocaleLowerCase('en')}|${e.set || ''}|${e.collector || ''}`)).size;
-  $('ignoredCount').textContent = ignored.length;
+  $('basicCount').textContent = ignored.filter(e => e.reason === 'Basic land').reduce((n, e) => n + e.quantity, 0);
+  $('ignoredCount').textContent = ignored.filter(e => e.reason !== 'Basic land').length;
   $('parsedCount').textContent = entries.length ? `${entries.length} entries parsed` : 'Paste cards to begin';
   if (errors.length) showNotice(errors.slice(0, 4).join(' • '), 'error');
   else if (notice.dataset.tone === 'error' && !controller) showNotice('');
@@ -110,10 +111,10 @@ function printSummary(rows) {
 async function generate(event) {
   event.preventDefault();
   if (controller) return;
-  const parsed = parseDecklist(entryField.value);
-  if (parsed.errors.length) { showNotice(parsed.errors.join(' • '), 'error'); return; }
-  if (!parsed.entries.length) { showNotice('Paste a decklist first. Removed and maybeboard cards are excluded.', 'error'); return; }
   const options = settings();
+  const parsed = parseDecklist(entryField.value, { includeBasics: options.printBasics });
+  if (parsed.errors.length) { showNotice(parsed.errors.join(' • '), 'error'); return; }
+  if (!parsed.entries.length) { showNotice('No cards to print. Paste a decklist or enable “Print basic lands” if your list contains only basics.', 'error'); return; }
   const abort = new AbortController();
   controller = abort;
   resetDownload();
@@ -149,6 +150,7 @@ async function generate(event) {
     if (failures.length) throw new Error(`${failures.length} card lookup${failures.length===1?'':'s'} failed. No incomplete PDF was created. ${failures.slice(0,3).join(' · ')}`);
     const matches = parsed.entries.map(entry => ({ entry, ...resolved.get(requestKey(entry, options)) }));
     printSummary(matches);
+    $('resolvedDetails').open = true;
 
     const imageGroups = new Map();
     index = 0;
@@ -194,6 +196,7 @@ async function generate(event) {
     } else {
       setProgress('Could not finish · review the details below', 0, 0);
       addLog(error.message, 'error');
+      $('activityDetails').open = true;
       showNotice(error.message, 'error');
     }
   } finally {
@@ -209,6 +212,7 @@ exampleButton.addEventListener('click', () => { entryField.value = SAMPLE; rende
 entryField.addEventListener('input', renderSummary);
 $('layout').addEventListener('change', renderSummary);
 $('doubleFaces').addEventListener('change', renderSummary);
+$('printBasics').addEventListener('change', renderSummary);
 clearButton.addEventListener('click', async () => {
   if (!confirm('Clear your browser’s cached card images and printing selections?')) return;
   await clearCache();

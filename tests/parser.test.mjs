@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDecklist, normalizeName, requestKey } from '../site/js/parser.js';
+import { parseDecklist, normalizeName, isBasicLandName, requestKey } from '../site/js/parser.js';
 
 test('plain cards, quantities, explicit set and collector numbers', () => {
   const result = parseDecklist('1x Command Tower (trc) 521\n7 Island\n2x Arcane Signet');
@@ -54,4 +54,33 @@ test('invalid quantities and large decks produce errors', () => {
   assert.ok(parseDecklist('0x Island').errors.length);
   assert.ok(parseDecklist('600x Island').errors.length);
   assert.ok(parseDecklist('500x Island\n300x Mountain').errors.length);
+});
+
+
+test('basic lands are excluded by default at the UI boundary, with quantity correctly counted', () => {
+  const deck = [
+    '7x Island (mdd) 294 [Land C]',
+    '2x Snow-Covered Swamp (khm) 280 [Land C]',
+    '1x Wastes (ogw) 183',
+    '1x Command Tower (trc) 521 [Land C]',
+    '1x Dryad Arbor (fut) 174',
+    '1x Boltwave (fdn) 79',
+  ].join('\n');
+  const excluded = parseDecklist(deck, { includeBasics: false });
+  assert.equal(excluded.total, 3);
+  assert.deepEqual(excluded.entries.map(e => e.name), ['Command Tower', 'Dryad Arbor', 'Boltwave']);
+  assert.equal(excluded.ignored.filter(x => x.reason === 'Basic land').reduce((n,x) => n + x.quantity, 0), 10);
+  assert.equal(excluded.errors.length, 0);
+  const included = parseDecklist(deck, { includeBasics: true });
+  assert.equal(included.total, 13);
+  assert.equal(included.ignored.length, 0);
+});
+
+test('basic land matching is exact and case-insensitive', () => {
+  for (const name of ['Plains', ' ISLAND ', 'swamp', 'Mountain', 'Forest', 'Wastes', 'Snow-Covered Island', 'Snow-Covered Mountain']) {
+    assert.equal(isBasicLandName(name), true, name);
+  }
+  for (const name of ['Command Tower', 'Mystic Sanctuary', 'Dryad Arbor', 'Island Sanctuary', 'Snow-Covered Forest Guardian']) {
+    assert.equal(isBasicLandName(name), false, name);
+  }
 });

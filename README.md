@@ -13,6 +13,7 @@ This is a **standalone GitHub Pages project**, based on the layout and printing-
 - Printing selection: **latest normal English paper printing** (default), or **most expensive eligible nonfoil USD printing**.
 - Explicit `(set) collector-number` entries are supported and override the default printing mode, subject to the artwork filters.
 - Options to avoid textless cards, favor standard artwork, and print both faces of double-faced cards.
+- **Print basic lands** is **off by default**, so basic land lines are excluded before Scryfall lookups. Turn it on to include them.
 - High-resolution PNG artwork or compressed large JPEG input (both embedded as quality-97% JPEG for manageable PDFs).
 - **IndexedDB image cache by Scryfall printing ID**. Different printings coexist; requesting the same one again reuses the bytes.
 - No backend, no build system, no CDN JavaScript. Images and printing metadata come directly from [Scryfall](https://scryfall.com/).
@@ -85,7 +86,7 @@ npm test
 
 ## Using the website
 
-1. Paste your decklist in the large input box.
+1. Paste your decklist in the input box (basic lands are omitted unless you enable **Print basic lands**).
 2. Adjust the settings below the text area.
 3. Click **Generate PDF**. You'll see matching printings and progress while Scryfall data/images are loaded.
 4. The generated PDF downloads automatically, with a second **Download your PDF** button as a backup.
@@ -112,6 +113,8 @@ Archidekt export (ranking categories and optional foil markers are accepted):
 1x Faithless Looting [Maybe Draw A{noDeck}{noPrice},Maybeboard{noDeck}{noPrice}]
 ```
 
+By default the site **also excludes basic lands** (Plains, Island, Swamp, Mountain, Forest, Wastes, and snow-covered basics), even when those lines specify an exact set and collector number. Enable **Print basic lands** to include them. The sheet summary shows how many basic-land cards were omitted.
+
 The site **excludes removed, maybeboard, and tokens/extras lines** when they are marked as the primary category or are in a Sideboard/Maybeboard section. An `Added` primary category is treated as an in-deck card. An incidental *secondary* maybeboard category doesn't remove an otherwise-mainboard card. The PDF includes each card as many times as its quantity. A double-faced card produces both faces unless **Front face only** is selected.
 
 ### Settings explained
@@ -125,6 +128,7 @@ The site **excludes removed, maybeboard, and tokens/extras lines** when they are
 | Double-faced cards | **Both faces** | Each front and back appears as a separate printable image. |
 | PDF filename | `mtg-rich-proxies.pdf` | Name of the downloaded PDF. |
 | Crop marks | **On** | Edge-origin ticks for guillotine trimming. |
+| Print basic lands | **Off** | By default skip basic lands (including snow-covered basics and Wastes), keeping nonbasic lands. Enable to print them. |
 | Avoid textless printings | **On** | Excludes printings marked `textless` in Scryfall's metadata. |
 
 **Exact set + collector requests take priority.** If a requested printing is excluded by filters, the site tries another eligible printing (same set first; another set if necessary) and shows a substitution message. If no eligible printing exists, that card fails and **no incomplete PDF is generated**.
@@ -141,7 +145,7 @@ Use **Clear cached images** in the page to discard printing selections and artwo
 
 ```text
 site/index.html          Responsive UI and all settings
-site/styles.css          Custom styling, no CSS framework required
+site/styles.css          Clean utility-style layout, no CSS framework required
 site/js/parser.js        Decklist parser
 site/js/scryfall.js      Scryfall API and image downloader
 site/js/cache.js         IndexedDB request / artwork cache
