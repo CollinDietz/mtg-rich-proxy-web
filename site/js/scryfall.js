@@ -118,6 +118,55 @@ function acceptableScryfallDefault(card, settings) {
     (!settings.avoidTextless || ![card, ...(card.card_faces || [])].some(part => part.textless));
 }
 
+/**
+ * A Scryfall named lookup may choose a textless or digital-only printing.
+ * If the user disallows that treatment, find a *different printing of the
+ * same Oracle card*, rather than refusing to print the card at all.
+ *
+ * We prefer Scryfall's own `is:default` printings first. The fallback runs
+ * only when the named result is ineligible, so normal named results still
+ * use Scryfall's selected image without any client-side ranking.
+ */
+async function findReadableAlternative(identity, entry, settings, signal) {
+  const name = entry.name.replaceAll('"', '');
+  const identityQuery = identity.oracle_id
+    ? `oracleid:${identity.oracle_id}`
+    : `!"${name}"`;
+  const base = `${identityQuery} game:paper lang:en`;
+  // Respect an explicitly requested set when possible; otherwise search all
+  // paper printings. Do not restrict to a set's collector number here because
+  // that precise printing has already failed the textless/paper check.
+  const scopes = entry.set ? [entry.set, null] : [null];
+  for (const set of scopes) {
+    const scoped = `${base}${set ? ` set:${set}` : ''}`;
+    for (const standardOnly of [true, false]) {
+      const q = `${scoped}${standardOnly ? ' is:default' : ''}`;
+      const params = new URLSearchParams({ q, unique: 'prints', order: 'released', dir: 'desc' });
+      let url = `${API}/cards/search?${params}`;
+      let lessPreferred = null;
+      while (url) {
+        let data;
+        try { data = await apiJson(url, signal); }
+        catch (error) {
+          // Scryfall returns a 404 for a valid query with no matching cards.
+          if (/No cards found/i.test(error.message)) break;
+          throw error;
+        }
+        for (const card of data.data || []) {
+          if (!nameMatches(card, entry.name) || !acceptableScryfallDefault(card, settings)) continue;
+          if (readable(card, { ...settings, treatment: 'standard' })) return card;
+          // Last resort: preserve the textless/paper restriction, but allow a
+          // readable special treatment if no standard printing is available.
+          lessPreferred ??= card;
+        }
+        url = data.has_more ? data.next_page : null;
+      }
+      if (lessPreferred) return lessPreferred;
+    }
+  }
+  return null;
+}
+
 /** Select a specific printing directly, or search all printings by resolved Oracle identity. */
 export async function resolveCard(entry, settings, signal) {
   const key = requestKey(entry, settings);
@@ -142,7 +191,13 @@ export async function resolveCard(entry, settings, signal) {
       throw new Error(`Scryfall returned '${chosen.name}', not '${name}'.`);
     }
     if (!acceptableScryfallDefault(chosen, settings)) {
-      throw new Error(`Scryfall's selected printing for '${name}' is not an English paper printing or is textless. Disable “Avoid textless printings” to use it.`);
+      const alternative = await findReadableAlternative(chosen, entry, settings, signal);
+      if (!alternative) {
+        throw new Error(`Scryfall's default printing for '${name}' was excluded, and no eligible English paper printing with rules text was found. You can disable “Avoid textless printings” to allow the default.`);
+      }
+      const note = `Scryfall default (${chosen.set?.toUpperCase() || '?'}) excluded by printing filters; using ${alternative.set?.toUpperCase() || '?'} #${alternative.collector_number || '?'} instead.`;
+      await putSelection(key, alternative, note);
+      return { card: alternative, note, cached: false };
     }
     await putSelection(key, chosen);
     return { card: chosen, note: '', cached: false };

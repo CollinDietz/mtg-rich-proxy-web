@@ -102,7 +102,107 @@ test('Scryfall default retains the textless opt-out', async () => {
     await assert.rejects(resolveCard(entry, settings), /textless/);
     const permitted = await resolveCard(entry, { ...settings, avoidTextless:false });
     assert.equal(permitted.card.id, 'textless-id');
-    assert.equal(count, 2);
+    assert.equal(count, 4, 'named + two fallback searches + unfiltered named lookup');
+  } finally {
+    globalThis.fetch = originalFetch;
+    await clearCache();
+  }
+});
+
+
+test('Brain Freeze: textless Scryfall default falls back to a readable standard paper printing and caches it', async () => {
+  await clearCache();
+  const originalFetch = globalThis.fetch;
+  const settings = { printingMode:'latest', treatment:'standard', avoidTextless:true };
+  const entry = { name:'Brain Freeze', set:null, collector:null };
+  const textless = { ...base, id:'brain-textless', oracle_id:'brain-oracle', name:'Brain Freeze', textless:true, set:'sld', collector_number:'2' };
+  const readablePrinting = { ...base, id:'brain-normal', oracle_id:'brain-oracle', name:'Brain Freeze', textless:false, set:'scg', collector_number:'29' };
+  const urls = [];
+  globalThis.fetch = async url => {
+    const u = String(url);
+    urls.push(u);
+    if (u.includes('/cards/named?')) return { ok:true, json:async () => textless };
+    if (u.includes('/cards/search?')) return { ok:true, json:async () => ({ data:[textless, readablePrinting], has_more:false }) };
+    throw new Error(`Unexpected request: ${u}`);
+  };
+  try {
+    const chosen = await resolveCard(entry, settings);
+    assert.equal(chosen.card.id, 'brain-normal');
+    assert.match(chosen.note, /excluded/i);
+    assert.match(urls[1], /oracleid%3Abrain-oracle/);
+    assert.match(urls[1], /is%3Adefault/);
+    assert.equal(urls.length, 2, 'search only because default is disallowed');
+    const cached = await resolveCard(entry, settings);
+    assert.equal(cached.card.id, 'brain-normal');
+    assert.equal(cached.cached, true);
+    assert.equal(urls.length, 2, 'fallback selection should be cached');
+  } finally {
+    globalThis.fetch = originalFetch;
+    await clearCache();
+  }
+});
+
+test('Scryfall default fallback prefers ordinary printings over special art', async () => {
+  await clearCache();
+  const originalFetch = globalThis.fetch;
+  const settings = { printingMode:'latest', treatment:'standard', avoidTextless:true };
+  const entry = { name:'Brain Freeze', set:null, collector:null };
+  const named = { ...base, id:'named', oracle_id:'oracle-1', name:'Brain Freeze', textless:true };
+  const special = { ...base, id:'sld', oracle_id:'oracle-1', name:'Brain Freeze', set:'sld', set_name:'Secret Lair Drop', textless:false };
+  const normal = { ...base, id:'normal', oracle_id:'oracle-1', name:'Brain Freeze', set:'scg', textless:false };
+  globalThis.fetch = async url => ({ ok:true, json:async () => String(url).includes('/cards/named?')
+    ? named : { data:[special, normal], has_more:false } });
+  try {
+    const chosen = await resolveCard(entry, settings);
+    assert.equal(chosen.card.id, 'normal');
+  } finally {
+    globalThis.fetch = originalFetch;
+    await clearCache();
+  }
+});
+
+test('Scryfall default fallback only relaxes special treatment if no standard choice exists', async () => {
+  await clearCache();
+  const originalFetch = globalThis.fetch;
+  const settings = { printingMode:'latest', treatment:'standard', avoidTextless:true };
+  const entry = { name:'Brain Freeze', set:null, collector:null };
+  const named = { ...base, id:'named', oracle_id:'oracle-1', name:'Brain Freeze', textless:true };
+  const special = { ...base, id:'special', oracle_id:'oracle-1', name:'Brain Freeze', set:'sld', set_name:'Secret Lair Drop', textless:false };
+  let searches = 0;
+  globalThis.fetch = async url => ({ ok:true, json:async () => {
+    if (String(url).includes('/cards/named?')) return named;
+    searches++;
+    return String(url).includes('is%3Adefault')
+      ? { data:[], has_more:false }
+      : { data:[special], has_more:false };
+  } });
+  try {
+    const chosen = await resolveCard(entry, settings);
+    assert.equal(chosen.card.id, 'special');
+    assert.equal(searches, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await clearCache();
+  }
+});
+
+test('Scryfall default fallback honors explicit set before searching other sets', async () => {
+  await clearCache();
+  const originalFetch = globalThis.fetch;
+  const settings = { printingMode:'latest', treatment:'standard', avoidTextless:true };
+  const entry = { name:'Brain Freeze', set:'soa', collector:'13' };
+  const named = { ...base, id:'named', oracle_id:'oracle-1', name:'Brain Freeze', textless:true, set:'soa' };
+  const withinSet = { ...base, id:'in-set', oracle_id:'oracle-1', name:'Brain Freeze', textless:false, set:'soa', collector_number:'78' };
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(String(url));
+    return { ok:true, json:async () => String(url).includes('/cards/search?')
+      ? { data:[withinSet], has_more:false } : named };
+  };
+  try {
+    const chosen = await resolveCard(entry, settings);
+    assert.equal(chosen.card.id, 'in-set');
+    assert.match(urls[1], /set%3Asoa/);
   } finally {
     globalThis.fetch = originalFetch;
     await clearCache();
