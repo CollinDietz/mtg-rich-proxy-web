@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0b0e16" />
+  <meta name="description" content="Generate print-ready Magic: The Gathering proxy PDF sheets from a decklist. Nine cards per letter page, multiple printings, crop marks, no installation." />
+  <title>MTG Rich Proxy — Print-ready cards, no install</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="module" src="./js/app.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <header class="site-header shell">
+    <a class="brand" href="./" aria-label="MTG Rich Proxy home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="5.2" y="6.2" width="15" height="19" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M11 3.5H20.4A3.1 3.1 0 0 1 23.5 6.6V19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9 18.5L13 12L17 18.5H9Z" fill="currentColor"/></svg>
+      </span>
+      <span class="brand-title">MTG <strong>Rich Proxy</strong><span class="brand-dot">.</span></span>
+    </a>
+    <div class="header-links">
+      <span class="header-caption">Browser edition</span>
+      <a href="https://github.com/CollinDietz/mtg_rich_proxy" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="View the original Python project on GitHub">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7A11.3 11.3 0 0 0 .7 12c0 5 3.24 9.3 7.73 10.73.57.11.77-.24.77-.54 0-.27-.01-.98-.02-1.92-3.14.68-3.8-1.51-3.8-1.51-.51-1.31-1.25-1.66-1.25-1.66-1.03-.71.08-.7.08-.7 1.14.08 1.74 1.17 1.74 1.17 1.02 1.74 2.66 1.24 3.31.95.1-.74.4-1.24.72-1.53-2.5-.28-5.13-1.25-5.13-5.58 0-1.23.44-2.23 1.16-3.01-.12-.29-.5-1.43.11-2.98 0 0 .95-.31 3.11 1.15A10.85 10.85 0 0 1 12 5.42c.96 0 1.92.13 2.82.38 2.16-1.46 3.1-1.15 3.1-1.15.62 1.55.23 2.69.12 2.98.72.78 1.15 1.78 1.15 3.01 0 4.34-2.63 5.3-5.14 5.57.41.35.76 1.02.76 2.06 0 1.49-.02 2.69-.02 3.06 0 .3.2.65.78.54A11.3 11.3 0 0 0 23.3 12 11.3 11.3 0 0 0 12 .7Z"/></svg>
+        <span>Source project</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="eyebrow"><span class="eyebrow-line"></span> PRINTING, SIMPLIFIED <span class="eyebrow-line"></span></div>
+      <h1 id="pageTitle">Your deck. <span>Ready for paper.</span></h1>
+      <p>Paste an MTG decklist, choose your printings, and generate an accurately sized proxy PDF. Everything runs in your browser — no install or server required.</p>
+      <div class="hero-tags"><span><span class="check-icon">✓</span> 2.5″ × 3.5″ cards</span><span><span class="check-icon">✓</span> Scryfall artwork</span><span><span class="check-icon">✓</span> Guillotine-friendly cuts</span></div>
+    </section>
+
+    <form id="form" class="workspace" novalidate>
+      <section class="panel input-panel" aria-label="Decklist and print settings">
+        <div class="panel-heading">
+          <div class="heading-icon"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h9a2 2 0 0 1 2 2v14H8z"/><path d="M5 7H4a2 2 0 0 0-2 2v11h6"/><path d="M11 9h5M11 13h5"/></svg></div>
+          <div><h2>Decklist</h2><p>One card per line. Archidekt exports work too.</p></div>
+          <button type="button" id="example" class="text-button">Load example <span aria-hidden="true">↗</span></button>
+        </div>
+        <div class="input-area">
+          <label for="decklist" class="field-label">PASTE YOUR CARDS</label>
+          <textarea id="decklist" spellcheck="false" placeholder="1x Command Tower&#10;1x Arcane Signet&#10;1x Blightstep Pathway // Searstep Pathway (khm) 251&#10;7x Island&#10;..." aria-describedby="deckHelp"></textarea>
+          <div class="textarea-bottom"><span id="deckHelp">Supports quantity, card name, optional (set) collector number, and Archidekt categories.</span><span id="parsedCount">Paste cards to begin</span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-heading"><h2>Print settings</h2><span>Make it yours</span></div>
+        <div class="settings">
+          <div class="field"><label for="layout">Cards per sheet</label><select id="layout"><option value="9" selected>9 — Portrait, shared cuts (default)</option><option value="8">8 — Landscape</option><option value="6">6 — Landscape</option></select><p class="field-description">US Letter paper; true 2.5″ × 3.5″ card size.</p></div>
+          <div class="field"><label for="printingMode">Default printing</label><select id="printingMode"><option value="latest" selected>Latest normal printing (recommended)</option><option value="expensive">Most expensive nonfoil USD printing</option></select><p class="field-description">Explicit (set) and collector numbers take priority. Newest means most recently released standard printing.</p></div>
+          <div class="field"><label for="treatment">Artwork treatment</label><select id="treatment"><option value="standard" selected>Standard artwork — avoid special frames</option><option value="any">Allow full-art, borderless and promos</option></select></div>
+          <div class="field"><label for="quality">Source image quality</label><select id="quality"><option value="large" selected>Large JPEG — smaller PDF</option><option value="png">High-res PNG source — larger PDF</option></select><p class="field-description">All artwork is embedded as high-quality JPEG inside the PDF.</p></div>
+          <div class="field"><label for="doubleFaces">Double-faced cards</label><select id="doubleFaces"><option value="both" selected>Print both faces as separate cards</option><option value="front">Front face only</option></select></div>
+          <div class="field"><label for="fileName">PDF filename</label><input type="text" id="fileName" value="mtg-rich-proxies" maxlength="90" autocomplete="off" /></div>
+          <div class="switch-row"><div><label for="cropMarks">Crop marks</label><p>Alignment ticks close to the paper edges.</p></div><label class="toggle"><input type="checkbox" id="cropMarks" checked /><span class="toggle-track"></span><span class="sr-only">Include crop marks</span></label></div>
+          <div class="switch-row"><div><label for="avoidTextless">Avoid textless printings</label><p>Keep rules text visible where Scryfall marks a printing textless.</p></div><label class="toggle"><input type="checkbox" id="avoidTextless" checked /><span class="toggle-track"></span><span class="sr-only">Exclude textless printings</span></label></div>
+        </div>
+        <div id="notice" class="notice" hidden role="alert"></div>
+        <div class="action-row"><button type="submit" id="generate" class="primary-button"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3"/></svg> Generate PDF <span class="button-chevron">→</span></button><button id="cancel" type="button" class="secondary-button" hidden>Cancel</button></div>
+        <p class="under-action">Scryfall card data is fetched over HTTPS. No decklist is uploaded to our server.</p>
+      </section>
+
+      <aside class="right-stack" aria-label="Preview and generation status">
+        <section class="panel overview-panel">
+          <div class="panel-heading simple"><div><h2>Print overview</h2><p>Your deck at a glance</p></div><div class="live-pill"><span class="live-circle"></span> Live</div></div>
+          <div class="stat-grid"><div class="stat"><span>Cards</span><strong id="cardCount">0</strong></div><div class="stat"><span>Est. sheets</span><strong id="pageCount">0</strong></div><div class="stat"><span>Unique entries</span><strong id="uniqueCount">0</strong></div><div class="stat"><span>Skipped sideboard</span><strong id="ignoredCount">0</strong></div></div>
+          <div class="sheet-preview"><div class="sheet-preview-top"><span id="templateLabel">9-UP PRINT TEMPLATE</span><span class="print-label">US LETTER</span></div><div class="paper"><div class="card-grid" id="cardGrid" data-layout="9" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="sheet-footer"><span>Card dimensions stay exact at 100%</span><span>8.5″ × 11″</span></div></div>
+          <p class="note-line"><span aria-hidden="true">ⓘ</span> <span id="cutNote">With 9-up, cards share cut lines.</span> Print at <strong>Actual size</strong>, never “Fit to page.”</p>
+        </section>
+        <section class="panel output-panel">
+          <div class="panel-heading simple"><div><h2>Generation</h2><p>Watch the progress here</p></div><div class="state-label"><span id="statusDot" class="state-dot"></span><span id="statusLabel">READY</span></div></div>
+          <p id="statusText" class="status-text" aria-live="polite">Your PDF will appear here once it's generated.</p>
+          <div id="progress" class="progress" role="progressbar" aria-label="PDF generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressFill"></div></div>
+          <a id="download" class="download-button" hidden href="#" download="mtg-rich-proxies.pdf"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3"/></svg> Download your PDF</a>
+          <div class="output-divider"></div>
+          <div class="output-heading"><h3 id="resultsHeading">Resolved printings</h3><span>Exact art selections</span></div>
+          <ul id="results" class="results-list"></ul>
+          <div class="output-heading log-heading"><h3>Activity</h3><span>Scryfall + PDF</span></div>
+          <ul id="log" class="activity-log" aria-live="polite"></ul>
+        </section>
+        <section class="secondary-panel"><div class="secondary-icon">↺</div><div><strong>Smart local cache</strong><p>Downloaded images are saved in your browser by unique Scryfall printing ID. Different printings don't overwrite each other.</p><button id="clearCache" type="button" class="reset-button">Clear cached images ↗</button></div></section>
+      </aside>
+    </form>
+
+    <section class="how-it-works" id="how-it-works"><div class="eyebrow section-eyebrow">THE PROCESS</div><h2>Three steps. One PDF.</h2><div class="steps"><div class="step"><span>01</span><h3>Paste your list</h3><p>Use any simple card list or an Archidekt export. Mainboard only; removed cards and maybeboard entries stay out.</p></div><div class="step"><span>02</span><h3>Pick your settings</h3><p>Select standard/latest or expensive artwork, your card layout, image quality and trim marks.</p></div><div class="step"><span>03</span><h3>Download and print</h3><p>The PDF is assembled locally in your browser. Print on US Letter at 100% scale and trim along the marks.</p></div></div></section>
+  </main>
+  <footer class="site-footer shell"><span>MTG Rich Proxy · Community printing utility</span><span>Card images and data courtesy of <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">Scryfall</a>. Magic: The Gathering is © Wizards of the Coast. Not affiliated or endorsed.</span></footer>
+</body>
+</html>
